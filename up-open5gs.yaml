@@ -1,0 +1,121 @@
+---
+- name: Up Open5GS server
+  hosts: localhost
+  connection: local
+  become: yes
+
+  vars:
+    open5gs_ip: "127.0.0.1"
+    ip_range: "{{ range(26, 36) | map('string') | list }}"
+    base_ip: "172.31.0"
+    # Corrigido a forma de pegar a variável de ambiente
+    interface: "{{ lookup('env', 'CORE_INTERFACE') | default('ens3') }}"
+    essential_packages:
+      - unzip
+
+  tasks:
+    - name: Registrar status de comissionamento
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Iniciado" >> {{ ansible_env.HOME }}/registros.txt
+    
+    - name: Verificar IPs na rede
+      ansible.builtin.shell: "ping -c 1 -W 1 {{ base_ip }}.{{ item }}"
+      loop: "{{ ip_range }}"
+      register: ping_results
+      ignore_errors: true
+
+    - name: Filtrar IPs que não responderam ao ping (livres)
+      set_fact:
+        free_ips: >-
+          {{
+            ping_results.results
+            | selectattr('rc', 'ne', 0)
+            | map(attribute='item')
+            | map('regex_replace', '^', base_ip + '.')
+            | list
+          }}
+
+    - name: Mostrar o primeiro IP livre
+      debug:
+        msg: >-
+          {% if free_ips %}
+            Primeiro IP livre encontrado: {{ free_ips[0] }}
+          {% else %}
+            Nenhum IP livre encontrado.
+          {% endif %}
+
+    - name: Salvar IP core em arquivo
+      copy:
+        dest: "/tmp/ip-core.txt"
+        content: "{{ free_ips[0] }}"
+      run_once: true
+      delegate_to: localhost
+      when: free_ips | length > 0
+
+    - name: Instalar dependências iniciais
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg
+        state: present
+        update_cache: yes
+
+    - name: Adicionar chave GPG oficial do Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Adicionar repositório estável do Docker
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Instalar Docker Engine e Docker Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Garantir que o serviço do Docker está rodando
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Adicionar meu usuário ao grupo docker
+      user:
+        name: "lance"
+        groups: docker
+        append: yes
+
+    - name: Criar rede macvlan_net
+      community.docker.docker_network:
+        name: macvlan_net
+        driver: macvlan
+        driver_options:
+          parent: "{{ interface }}"
+        ipam_config:
+          - subnet: "172.31.0.0/24"
+            gateway: "172.31.0.1"
+        state: present
+
+    # --- FIM DA LOGICA DE TEMPLATE DINAMICO ---
+
+    - name: Subir o ambiente Docker Compose com Macvlan
+      community.docker.docker_compose_v2:
+        project_src: "/home/lance/ansible/pacote_B/docker"
+        files:
+          - docker-compose-macvlan.yml
+        state: present
+        wait: yes
+
+    - name: Registrar status de comissionamento Final
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado com IP {{ free_ips[0] }}" >> {{ ansible_env.HOME }}/registros.txt

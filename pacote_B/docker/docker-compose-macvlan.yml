@@ -1,0 +1,72 @@
+# Copyright 2021-2024 Software Radio Systems Limited
+#
+# This file is part of srsRAN
+#
+# srsRAN is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# srsRAN is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# A copy of the GNU Affero General Public License can be found in
+# the LICENSE file in the top-level directory of this distribution
+# and at http://www.gnu.org/licenses/.
+#
+
+services:
+  5gc:
+    container_name: open5gs_5gc
+    build:
+      context: open5gs
+      target: open5gs
+      args:
+        OS_VERSION: "22.04"
+        OPEN5GS_VERSION: "v2.7.0"
+    env_file:
+      - ${OPEN_5GS_ENV_FILE:-open5gs/open5gs.env}
+    privileged: true
+    ports:
+      - "9999:9999/tcp"
+    # Uncomment port to use the 5gc from outside the docker network
+      - "38412:38412/sctp"
+      - "2152:2152/udp"
+    command: 5gc -c open5gs-5gc.yml
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.20 7777" ]
+      interval: 3s
+      timeout: 1s
+      retries: 60
+    networks:
+      macvlan_net:
+        ipv4_address: ${OPEN5GS_IP:-172.31.0.154}  # IP fixo dentro da rede da máquina
+
+  video-server:
+      image: nginx:latest
+      container_name: dash-server
+      volumes:
+          - ./dash-server/video:/usr/share/nginx/html/video-dash
+          - ./dash-server/nginx.conf:/etc/nginx/nginx.conf
+          - ./dash-server/index.html:/usr/share/nginx/html/index.html
+          - ./dash-server/mime.types:/etc/nginx/mime.types
+          - ./dash-server/setup-firewall.sh:/setup-firewall.sh
+      restart: unless-stopped
+      networks:
+        macvlan_net:
+          ipv4_address: 172.31.0.155
+      healthcheck:
+          interval: 10s
+          timeout: 5s
+          retries: 5
+          start_period: 20s
+      command: /bin/sh -c "apt-get update && apt-get install -y iptables iproute2 && ip route add 10.45.0.0/16 via ${OPEN5GS_IP:-172.31.0.154} dev eth0 && chmod +x /setup-firewall.sh && sleep 5 && /setup-firewall.sh && nginx -g 'daemon off;'"
+      cap_add:
+          - NET_ADMIN
+      privileged: true
+  
+networks:
+  macvlan_net:
+    external: true

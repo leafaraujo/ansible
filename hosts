@@ -1,0 +1,5 @@
+[controller_node]
+172.31.0.73  ansible_user=lance
+
+[gnb]
+172.31.0.56  ansible_user=lance

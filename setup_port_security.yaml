@@ -1,0 +1,29 @@
+---
+- name: Liberar Port Security via CLI
+  hosts: controller_node
+  gather_facts: false
+
+  tasks:
+    - name: Buscar ID da porta e configurar segurança
+      shell: |
+        # Carrega as credenciais
+        source /admin-openrc
+        
+        # Busca o ID da porta pelo IP
+        PORT_ID=$(openstack port list --fixed-ip ip-address={{ ip_do_core }} -c ID -f value)
+        
+        if [ -z "$PORT_ID" ]; then
+          echo "Porta não encontrada para o IP {{ ip_do_core }}"
+          exit 1
+        fi
+        
+        # Aplica as configurações de liberação
+        openstack port set --no-security-group --disable-port-security $PORT_ID
+        echo "Porta $PORT_ID configurada com sucesso."
+      args:
+        executable: /bin/bash
+      register: output_cli
+
+    - name: Mostrar resultado
+      debug:
+        var: output_cli.stdout

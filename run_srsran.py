@@ -17,7 +17,7 @@ r = ansible_runner.run(
     inventory={
         'all': {
             'hosts': {
-                'gnb_host': {
+                'gnb': {
                     'ansible_host': GNB_IP,
                     'ansible_user': GNB_USER,
                     'ansible_password': GNB_PASS,

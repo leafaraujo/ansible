@@ -42,7 +42,7 @@ services:
       retries: 60
     networks:
       macvlan_net:
-        ipv4_address: 172.31.0.126  # IP fixo dentro da rede da máquina
+        ipv4_address: 172.31.0.26  # IP fixo dentro da rede da máquina
 
   video-server:
       image: nginx:latest

@@ -1,0 +1,54 @@
+---
+- name: Up srsRAN server
+  hosts: gnb
+  become: yes
+  vars:
+    # Defina o usuário explicitamente se o ansible_user falhar
+    username: "lance"
+    user_home: "/home/{{ username }}"
+
+  tasks:
+    - name: Registrar inicio
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Iniciado" >> {{ user_home }}/registros.txt
+
+    - name: Configurar Sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/gnb
+        # Usamos o caminho absoluto para evitar erro de "~"
+        line: "{{ username }} ALL=(ALL) NOPASSWD: {{ user_home }}/srsRAN/build/apps/gnb/gnb"
+        create: yes
+        mode: '0440'
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Ajustar permissões do script
+      ansible.builtin.file:
+        path: "{{ user_home }}/srsRAN/utils/gnb_up_b210.sh"
+        mode: '0755'
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        state: file
+
+    - name: Deploy docker-compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ user_home }}/srsRAN/docker"
+        files:
+          - "docker-compose.yml"
+        services:
+          - grafana
+          - influxdb
+          - metrics-server
+        state: present
+
+    - name: Execute tmux session
+      # Usamos 'become: no' aqui para o tmux rodar no usuário 'lance' e não no root
+      become: no
+      ansible.builtin.shell: |
+        tmux has-session -t srsRAN_session 2>/dev/null || \
+        tmux new -d -s srsRAN_session "cd {{ user_home }}/srsRAN/utils/ && ./gnb_up_b210.sh"
+      args:
+        executable: /bin/bash
+
+    - name: Registrar fim
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Finalizado" >> {{ user_home }}/registros.txt

@@ -1,0 +1,13 @@
+FROM ubuntu:jammy
+
+RUN apt-get update && apt-get install software-properties-common -y
+RUN add-apt-repository universe
+RUN apt-get install nginx libnginx-mod-rtmp ffmpeg -y
+
+# Diretório para armazenar os segmentos de HLS
+RUN mkdir -p /var/www/html/hls_native
+
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY video.mp4 /opt/
+COPY run4k.sh /opt/run.sh
+RUN chmod +x /opt/run.sh

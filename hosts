@@ -3,3 +3,6 @@
 
 [gnb]
 172.31.0.56  ansible_user=lance
+
+[video_app]
+172.31.0.215  ansible_user=lance

@@ -1,0 +1,97 @@
+---
+- name: Up video application server
+  hosts: video_app
+  become: yes
+
+  vars:
+    # Corrigido a forma de pegar a variável de ambiente
+    interface: "{{ lookup('env', 'CORE_INTERFACE') | default('ens3') }}"
+    essential_packages:
+      - unzip
+
+  tasks:
+    - name: Registrar status de comissionamento
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Iniciado" >> {{ ansible_env.HOME }}/registros.txt
+
+    - name: Instalar dependências iniciais
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg
+          - unzip
+        state: present
+        update_cache: yes
+
+    - name: Adicionar chave GPG oficial do Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Adicionar repositório estável do Docker
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Instalar Docker Engine e Docker Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Garantir que o serviço do Docker está rodando
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Adicionar meu usuário ao grupo docker
+      user:
+        name: "lance"
+        groups: docker
+        append: yes
+
+    - name: Limpar ambiente Docker e Redes corrompidas
+      shell: |
+        docker stop $(docker ps -aq) || true
+        docker rm $(docker ps -aq) || true
+        docker network rm macvlan_net || true
+        docker network prune -f
+      become: yes
+      ignore_errors: yes
+
+    - name: Criar rede macvlan_net via Shell (Garante estabilidade)
+      shell: >
+        docker network create -d macvlan 
+        --subnet=172.31.0.0/24 
+        --gateway=172.31.0.1 
+        -o parent=ens3 
+        macvlan_net
+      become: yes
+
+    - name: Subir o ambiente Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "/home/lance/ansible/pacote_B/docker"
+        files:
+          - docker-compose-video-4k-macvlan.yml
+        state: present
+        wait: yes
+
+    - name: Subir o ambiente Docker Compose com Macvlan
+      community.docker.docker_compose_v2:
+        project_src: "/home/lance/ansible/pacote_B/docker"
+        files:
+          - docker-compose-video-4k-macvlan.yml
+        state: present
+        wait: yes
+
+    - name: Registrar status de comissionamento Final
+      ansible.builtin.shell: |
+          echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado" >> {{ ansible_env.HOME }}/registros.txt

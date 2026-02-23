@@ -11,20 +11,15 @@
     - name: Registrar inicio
       ansible.builtin.shell: |
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Iniciado" >> {{ user_home }}/registros.txt
-    
-    - name: Ensure the {{ ansible_env.HOME }}/srsRAN/build directory exists
-      ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/srsRAN/build"
-      register: srsRAN_instalado
   
-    - name: Clonar repositório srsRAN_Project na tag release_25_04
+    - name: Clonar repositório customizado do srsRAN
       ansible.builtin.git:
-        repo: "https://github.com/srsran/srsRAN_Project.git"
-        dest: "{{ ansible_env.HOME }}/srsRAN"
-        version: "release_25_04"
+        repo: "https://github.com/leafaraujo/srsRAN.git"
+        dest: "{{ user_home }}/srsRAN"
+        version: "main" 
         update: yes
-      when: not srsRAN_instalado.stat.exists
-    
+
+
     - name: Criar diretórios {{ ansible_env.HOME }}/srsRAN/build
       ansible.builtin.shell: mkdir {{ ansible_env.HOME }}/srsRAN/build
       args:
@@ -46,7 +41,6 @@
         - libyaml-cpp-dev
         state: present
         update_cache: yes
-      when: not srsRAN_instalado.stat.exists
     
     - name: Check if gnb binary exists
       ansible.builtin.stat:
@@ -77,16 +71,6 @@
         mode: '0440'
         validate: '/usr/sbin/visudo -cf %s'
       when: not gnb_binary_stat.stat.exists
-    
-    - name: Template gnb_conf file
-      template: 
-        src: gnb.pacoteB.conf
-        dest: "{{ ansible_env.HOME }}/srsRAN/utils/gnb.pacoteB.conf"
-    
-    - name: Template gnb_up_b210.sh file
-      template: 
-        src: gnb_up_b210.sh
-        dest: "{{ ansible_env.HOME }}/srsRAN/utils/gnb_up_b210.sh"
     
     - name: Tornar gnb_up_b210.sh executável
       file:

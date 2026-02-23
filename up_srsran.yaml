@@ -11,6 +11,90 @@
     - name: Registrar inicio
       ansible.builtin.shell: |
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Iniciado" >> {{ user_home }}/registros.txt
+    
+    - name: Ensure the {{ ansible_env.HOME }}/srsRAN/build directory exists
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/srsRAN/build"
+      register: srsRAN_instalado
+  
+    - name: Clonar repositório srsRAN_Project na tag release_25_04
+      ansible.builtin.git:
+        repo: "https://github.com/srsran/srsRAN_Project.git"
+        dest: "{{ ansible_env.HOME }}/srsRAN"
+        version: "release_25_04"
+        update: yes
+      when: not srsRAN_instalado.stat.exists
+    
+    - name: Criar diretórios {{ ansible_env.HOME }}/srsRAN/build
+      ansible.builtin.shell: mkdir {{ ansible_env.HOME }}/srsRAN/build
+      args:
+        executable: /bin/bash
+      when: not srsRAN_instalado.stat.exists
+
+    - name: Instalar dependências necessárias à compilação do srsRAN
+      become: true
+      apt:
+        name:
+        - cmake
+        - make
+        - gcc
+        - g++
+        - pkg-config
+        - libfftw3-dev
+        - libmbedtls-dev
+        - libsctp-dev
+        - libyaml-cpp-dev
+        state: present
+        update_cache: yes
+      when: not srsRAN_instalado.stat.exists
+    
+    - name: Check if gnb binary exists
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/srsRAN/build/apps/gnb/gnb"
+      register: gnb_binary_stat
+
+    - name: Cmake srsRAN
+      command: cmake ../
+      args:
+        chdir: "{{ ansible_env.HOME }}/srsRAN/build"
+      when: not gnb_binary_stat.stat.exists
+
+    - name: Build srsRAN
+      become: true
+      shell: |
+        make -j"$(nproc)"
+        make install
+      args:
+        chdir: "{{ ansible_env.HOME }}/srsRAN/build"
+      when: not gnb_binary_stat.stat.exists
+
+    - name: Permitir execução do binário gnb sem senha (via sudoers.d)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/gnb
+        line: "{{ ansible_user }} ALL=(ALL) NOPASSWD: {{ ansible_env.HOME }}/srsRAN/build/apps/gnb/gnb"
+        create: yes
+        mode: '0440'
+        validate: '/usr/sbin/visudo -cf %s'
+      when: not gnb_binary_stat.stat.exists
+    
+    - name: Template gnb_conf file
+      template: 
+        src: gnb.pacoteB.conf
+        dest: "{{ ansible_env.HOME }}/srsRAN/utils/gnb.pacoteB.conf"
+    
+    - name: Template gnb_up_b210.sh file
+      template: 
+        src: gnb_up_b210.sh
+        dest: "{{ ansible_env.HOME }}/srsRAN/utils/gnb_up_b210.sh"
+    
+    - name: Tornar gnb_up_b210.sh executável
+      file:
+        path: "{{ ansible_env.HOME }}/srsRAN/utils/gnb_up_b210.sh"
+        mode: '0755'
+        owner: "{{ ansible_user | default(omit) }}"
+        group: "{{ ansible_user | default(omit) }}"
+        state: file
 
     - name: Configurar Sudoers
       ansible.builtin.lineinfile:

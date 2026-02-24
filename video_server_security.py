@@ -10,7 +10,7 @@ PLAYBOOK_PATH = 'setup_port_security.yaml'
 BASE_DIR = "/home/lance/ansible"
 
 # Detecta o IP da VM atual
-meu_ip = '172.31.0.215'
+meu_ip = '192.168.160.80'
 print(f"[*] IP detectado para esta VM (Core): {meu_ip}")
 print(f"[*] Iniciando orquestração no controlador: {CONTROLLER_IP}")
 

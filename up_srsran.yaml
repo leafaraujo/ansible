@@ -61,6 +61,7 @@
           - python3-setuptools
           - python3-ruamel.yaml
           # Adicionei o driver UHD caso ainda não tenha
+          - libuhd4.7.0
           - libuhd-dev
           - uhd-host
         state: present
@@ -80,19 +81,25 @@
         path: "/home/lance/srsRAN/build/apps/gnb/gnb"
       register: gnb_binary_stat
 
+    - name: Criar novo diretório de build
+      file:
+        path: "/home/lance/srsRAN/build"
+        state: directory
+        mode: '0755'
+    
     - name: Cmake srsRAN
-      command: cmake ../
+      command: cmake -DENABLE_WERROR=OFF ../
       args:
-        chdir: "/home/{{ ansible_env.HOME }}/srsRAN/build"
+        chdir: "/home/lance/srsRAN/build"
       when: not gnb_binary_stat.stat.exists
-
+    
     - name: Build srsRAN
       become: true
       shell: |
         make -j"$(nproc)"
         make install
       args:
-        chdir: "{{ ansible_env.HOME }}/srsRAN/build"
+        chdir: "/home/lance/srsRAN/build"
       when: not gnb_binary_stat.stat.exists
 
     - name: Permitir execução do binário gnb sem senha (via sudoers.d)

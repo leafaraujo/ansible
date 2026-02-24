@@ -4,7 +4,7 @@ import os
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # 1. Definições de acesso
-TARGET_IP = '172.31.0.215'
+TARGET_IP = '192.168.160.80'
 USER = 'lance'
 PASS = 'lance123'
 

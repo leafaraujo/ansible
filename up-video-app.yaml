@@ -70,11 +70,19 @@
     - name: Criar rede macvlan_net via Shell (Garante estabilidade)
       shell: >
         docker network create -d macvlan 
-        --subnet=172.31.0.0/24 
-        --gateway=172.31.0.1 
+        --subnet=192.168.160.0/24 
+        --gateway=192.168.160.1 
         -o parent=ens3 
         macvlan_net
       become: yes
+
+    - name: Criar interface Macvlan Bridge para comunicação Host-Container
+      shell: |
+        if ! ip link show macvlan-br; then
+          ip link add macvlan-br link ens3 type macvlan mode bridge
+          ip addr add 192.168.160.91/24 dev macvlan-br
+          ip link set macvlan-br up
+        fi
 
     - name: Subir o ambiente Docker Compose
       community.docker.docker_compose_v2:

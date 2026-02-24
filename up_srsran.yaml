@@ -18,39 +18,72 @@
         dest: "{{ user_home }}/srsRAN"
         version: "main" 
         update: yes
-
-
-    - name: Criar diretórios {{ ansible_env.HOME }}/srsRAN/build
-      ansible.builtin.shell: mkdir {{ ansible_env.HOME }}/srsRAN/build
-      args:
-        executable: /bin/bash
-      when: not srsRAN_instalado.stat.exists
+    
+    - name: Adicionar repositório PPA do driver UHD (Ettus Research)
+      apt_repository:
+        repo: 'ppa:ettusresearch/uhd'
+        state: present
+        update_cache: yes
 
     - name: Instalar dependências necessárias à compilação do srsRAN
       become: true
       apt:
         name:
-        - cmake
-        - make
-        - gcc
-        - g++
-        - pkg-config
-        - libfftw3-dev
-        - libmbedtls-dev
-        - libsctp-dev
-        - libyaml-cpp-dev
+          - cmake
+          - make
+          - gcc
+          - g++
+          - pkg-config
+          - libfftw3-dev
+          - libmbedtls-dev
+          - libsctp-dev
+          - libyaml-cpp-dev
+          - autoconf
+          - automake
+          - build-essential
+          - ccache
+          - cpufrequtils
+          - doxygen
+          - ethtool
+          - git
+          - inetutils-tools
+          - libboost-all-dev
+          - libncurses5
+          - libncurses5-dev
+          - libusb-1.0-0
+          - libusb-1.0-0-dev
+          - libusb-dev
+          - python3-dev
+          - python3-mako
+          - python3-numpy
+          - python3-requests
+          - python3-scipy
+          - python3-setuptools
+          - python3-ruamel.yaml
+          # Adicionei o driver UHD caso ainda não tenha
+          - libuhd-dev
+          - uhd-host
         state: present
         update_cache: yes
     
+    - name: Garantir que o cache de bibliotecas (ldconfig) seja atualizado
+      command: ldconfig
+      changed_when: false # Isso apenas evita que o Ansible marque como "changed" toda vez
+
+    - name: Baixar imagens do UHD (necessário para o B210)
+      command: uhd_images_downloader
+      register: uhd_dl
+      changed_when: "'Images already installed' not in uhd_dl.stdout"
+    
     - name: Check if gnb binary exists
       ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/srsRAN/build/apps/gnb/gnb"
+        path: "/home/lance/srsRAN/build/apps/gnb/gnb"
       register: gnb_binary_stat
 
     - name: Cmake srsRAN
       command: cmake ../
       args:
-        chdir: "{{ ansible_env.HOME }}/srsRAN/build"
+        chdir: "/home/{{ ansible_env.HOME }}/srsRAN/build"
       when: not gnb_binary_stat.stat.exists
 
     - name: Build srsRAN
@@ -70,11 +103,12 @@
         create: yes
         mode: '0440'
         validate: '/usr/sbin/visudo -cf %s'
-      when: not gnb_binary_stat.stat.exists
+      become: yes
+    
     
     - name: Tornar gnb_up_b210.sh executável
       file:
-        path: "{{ ansible_env.HOME }}/srsRAN/utils/gnb_up_b210.sh"
+        path: "/home/lance/srsRAN/utils/gnb_up_b210.sh"
         mode: '0755'
         owner: "{{ ansible_user | default(omit) }}"
         group: "{{ ansible_user | default(omit) }}"
@@ -99,7 +133,7 @@
 
     - name: Deploy docker-compose
       community.docker.docker_compose_v2:
-        project_src: "{{ user_home }}/srsRAN/docker"
+        project_src: "/home/lance/srsRAN/docker"
         files:
           - "docker-compose.yml"
         services:
@@ -113,7 +147,7 @@
       become: no
       ansible.builtin.shell: |
         tmux has-session -t srsRAN_session 2>/dev/null || \
-        tmux new -d -s srsRAN_session "cd {{ user_home }}/srsRAN/utils/ && ./gnb_up_b210.sh"
+        tmux new -d -s srsRAN_session "cd /home/lance/srsRAN/utils/ && ./gnb_up_b210.sh"
       args:
         executable: /bin/bash
 

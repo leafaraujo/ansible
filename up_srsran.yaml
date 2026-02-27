@@ -10,15 +10,22 @@
   tasks:
     - name: Registrar inicio
       ansible.builtin.shell: |
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Iniciado" >> {{ user_home }}/registros.txt
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Iniciado"
   
+# --- SOLUÇÃO PARA O CLONE ---
+    - name: Verificar se o repositório srsRAN já existe
+      ansible.builtin.stat:
+        path: "{{ user_home }}/srsRAN"
+      register: srsran_dir
+
     - name: Clonar repositório customizado do srsRAN
       ansible.builtin.git:
         repo: "https://github.com/leafaraujo/srsRAN.git"
         dest: "{{ user_home }}/srsRAN"
-        version: "main" 
-        update: yes
-    
+        version: "main"
+        update: no # Não tenta atualizar se já existir, evita erro de modif. locais
+      become: false
+      when: not srsran_dir.stat.exists    
     - name: Adicionar repositório PPA do driver UHD (Ettus Research)
       apt_repository:
         repo: 'ppa:ettusresearch/uhd'

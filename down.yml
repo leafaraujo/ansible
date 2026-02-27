@@ -1,0 +1,34 @@
+---
+- name: Down bbu session
+  hosts: all
+
+  vars:
+    interface: "{{ interface }}"
+
+  tasks:
+    - name: Registrar status de comissionamento
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Decomissionamento BBU OAI Iniciado" >> {{ ansible_env.HOME }}/registros.txt
+
+    - name: Kill tmux bbu_session
+      shell: tmux kill-session -t bbu_session
+
+    - name: Remove route
+      become: true
+      ansible.builtin.command: ip route del 192.168.70.128/26 dev {{ interface }}
+      # when: slice_parts_ip_Core != slice_parts_ip_BBU
+      ignore_errors: true
+    
+    - name: Remover limite de tráfego de saída (egress)
+      become: true
+      shell: |
+        tc qdisc del dev {{ interface }} root || true
+    
+    - name: Remover limite de tráfego de entrada (ingress)
+      become: true
+      shell: |
+        tc qdisc del dev {{ interface }} ingress || true
+
+    - name: Registrar status de comissionamento
+      ansible.builtin.shell: |
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Decomissionamento BBU OAI Finalizado" >> {{ ansible_env.HOME }}/registros.txt

@@ -16,7 +16,7 @@
   tasks:
     - name: Registrar status de comissionamento
       ansible.builtin.shell: |
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Iniciado" >> {{ ansible_env.HOME }}/registros.txt
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Iniciado" >> /home/lance/registros.txt
 
     - name: Instalar dependências iniciais
       apt:
@@ -61,26 +61,26 @@
         groups: docker
         append: yes
 
-    - name: Criar rede macvlan_net
-      community.docker.docker_network:
-        name: macvlan_net
-        driver: macvlan
-        driver_options:
-          parent: "{{ interface }}"
-        ipam_config:
-          - subnet: "172.31.0.0/24"
-            gateway: "172.31.0.1"
-        state: present
+    - name: Criar rede macvlan_net via Shell (Garante estabilidade)
+      shell: >
+        docker network create -d macvlan
+        --subnet=172.31.0.0/24
+        --gateway=172.31.0.1
+        -o parent=ens3
+        macvlan_net
+      become: yes
 
 
     - name: Subir o ambiente Docker Compose com Macvlan
       community.docker.docker_compose_v2:
         project_src: "/home/lance/ansible/pacote_B/docker"
         files:
-          - docker-compose-macvlan.yml
+          - docker-compose-5gc-macvlan.yml
         state: present
         wait: yes
 
-    - name: Registrar status de comissionamento Final
+
+    - name: Registrar status de comissionamento final
       ansible.builtin.shell: |
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado com IP {{ free_ips[0] }}" >> {{ ansible_env.HOME }}/registros.txt
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado com IP {{ ansible_facts[interface]['ipv4']['address'] | default(ansible_default_ipv4.address) }}" >> /home/lance/registros.txt
+      become: no  # Garante que escreva no diretório do usuário lance sem erros de permissão de root

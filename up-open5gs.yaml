@@ -83,4 +83,4 @@
     - name: Registrar status de comissionamento final
       ansible.builtin.shell: |
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado com IP {{ ansible_facts[interface]['ipv4']['address'] | default(ansible_default_ipv4.address) }}" >> /home/lance/registros.txt
-      become: no  # Garante que escreva no diretório do usuário lance sem erros de permissão de root
+        #become: no  # Garante que escreva no diretório do usuário lance sem erros de permissão de root

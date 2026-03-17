@@ -37,7 +37,8 @@ ARG NUM_CORES=""
 # Stage 1: Build #
 ##################
 #FROM ubuntu:$OS_VERSION AS builder
-FROM ubuntu:24.04 AS builder
+#FROM ubuntu:24.04 AS builder
+FROM 172.31.0.72/5g_projects/ubuntu:$OS_VERSION AS builder
 
 # Adding the complete repo to the context, in /src folder
 ADD . /src
@@ -80,7 +81,8 @@ RUN cp /src/build/tests/integrationtests/ofh/ru_emulator /opt/srs/bin/ru_emulato
 ################
 
 #FROM ubuntu:$OS_VERSION
-FROM ubuntu:24.04
+#FROM ubuntu:24.04
+FROM 172.31.0.72/5g_projects/ubuntu:$OS_VERSION
 
 ARG LIB
 ARG LIB_VERSION

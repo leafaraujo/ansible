@@ -24,6 +24,11 @@
         - /etc/apt/sources.list.d/docker.sources
         - /etc/apt/sources.list.d/docker-repo.list
 
+    - name: Forçar atualização do cache do apt após limpeza
+      become: yes
+      apt:
+        update_cache: yes
+
     - name: Instalar dependências iniciais
       apt:
         name:
@@ -35,6 +40,18 @@
           - unzip
         state: present
         update_cache: yes
+
+    - name: Garantir que o serviço do Docker está rodando
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Adicionar meu usuário ao grupo docker
+      user:
+        name: "lance"
+        groups: docker
+        append: yes
 
     - name: Registrar inicio da implementacao da aplicacao de video
       ansible.builtin.shell: |
@@ -57,6 +74,7 @@
         -o parent=ens3 
         macvlan_net
       become: yes
+      ignore_errors: yes
 
     - name: Criar interface Macvlan Bridge para comunicação Host-Container
       shell: |
@@ -65,6 +83,7 @@
           ip addr add 192.168.160.91/24 dev macvlan-br
           ip link set macvlan-br up
         fi
+      ignore_errors: yes
 
     - name: Subir o ambiente Docker Compose
       community.docker.docker_compose_v2:

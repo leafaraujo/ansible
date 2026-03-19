@@ -58,6 +58,7 @@
         -o parent=ens3
         macvlan_net
       become: yes
+      ignore_errors: yes
 
 
     - name: Subir o ambiente Docker Compose com Macvlan

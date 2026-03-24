@@ -99,10 +99,10 @@
         mode: '0440'
         validate: '/usr/sbin/visudo -cf %s'
 
-    - name: Ler conteúdo de arquivo local e salvar em variável
-      set_fact:
-        open5gs_ip: "{{ lookup('file', '/tmp/ip-core.txt') }}"
-      ignore_errors: true
+          #- name: Ler conteúdo de arquivo local e salvar em variável
+          #set_fact:
+          #open5gs_ip: "{{ lookup('file', '/home/lance/ansible/ip-core.txt') }}"
+          #ignore_errors: true
 
     - name: Registrar status de comissionamento
       shell: echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento srsRAN Iniciado" >> /home/lance/registros.txt

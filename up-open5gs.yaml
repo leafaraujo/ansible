@@ -74,13 +74,16 @@
       ansible.builtin.shell: |
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado com IP {{ ansible_facts[interface]['ipv4']['address'] | default(ansible_default_ipv4.address) }}" >> /home/lance/registros.txt
 
-    - name: Aguardar VM do video-server ficar online (192.168.160.80)
-      shell: "ping -c 1 192.168.160.80"
-      register: video_ping
-      until: amf_ping.rc == 0
-      retries: 100       # 40 tentativas
-      delay: 10         # a cada 15 segundos (Total 10 minutos)
-      args:
-        executable: /bin/bash
+    - name: Aguardar SSH da VM do video-server ficar pronto (192.168.160.80)
+      ansible.builtin.wait_for:
+        host: "192.168.160.80"
+        port: 22
+        state: started
+        delay: 5        # Espera 5 segundos antes de começar a testar
+        timeout: 600    # Tempo máximo de 10 minutos
+      register: ssh_ready
 
+        #- name: Registrar status de comissionamento - Vídeo Server Online
+        #ansible.builtin.shell: |
+        # echo "$(date '+%Y-%m-%d %H:%M:%S') - VM Video Server detectada e SSH ativo" >> /home/lance/registros.txt
         #become: no  # Garante que escreva no diretório do usuário lance sem erros de permissão de root

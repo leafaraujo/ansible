@@ -73,4 +73,14 @@
     - name: Registrar status de comissionamento final
       ansible.builtin.shell: |
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Comissionamento CORE Open5GS Finalizado com IP {{ ansible_facts[interface]['ipv4']['address'] | default(ansible_default_ipv4.address) }}" >> /home/lance/registros.txt
+
+    - name: Aguardar VM do video-server ficar online (192.168.160.80)
+      shell: "ping -c 1 192.168.160.80"
+      register: video_ping
+      until: amf_ping.rc == 0
+      retries: 100       # 40 tentativas
+      delay: 10         # a cada 15 segundos (Total 10 minutos)
+      args:
+        executable: /bin/bash
+
         #become: no  # Garante que escreva no diretório do usuário lance sem erros de permissão de root
